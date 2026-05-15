@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Acompanhamento Pedagógico</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Mulish:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg: #f0ede8;
+  --white: #ffffff;
+  --navy: #1c2b4a;
+  --navy2: #253660;
+  --accent: #3a6fd8;
+  --green: #1e7d5a;
+  --green-l: #e4f5ed;
+  --amber: #c47b10;
+  --amber-l: #fef4e0;
+  --red: #c0392b;
+  --red-l: #fdecea;
+  --purple: #6c3eb5;
+  --border: #ddd8d0;
+  --text: #1c2b4a;
+  --muted: #7a7e90;
+  --shadow: 0 2px 18px rgba(28,43,74,0.10);
+  --radius: 12px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Mulish', sans-serif; min-height: 100vh; }
+
+.header {
+  background: var(--navy); padding: 0 28px;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 64px; position: sticky; top: 0; z-index: 200;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.18);
+}
+.header-title { font-family: 'Playfair Display', serif; font-size: 1.15rem; color: #fff; font-weight: 700; }
+.header-title span { color: #7ecba1; }
+.header-sub { font-size: 0.67rem; color: #8b9abf; letter-spacing: 1.2px; text-transform: uppercase; margin-top: 1px; }
+.header-actions { display: flex; gap: 8px; align-items: center; }
+
+.sync-status {
+  font-size: 0.7rem; font-weight: 600; color: #8b9abf;
+  display: flex; align-items: center; gap: 5px;
+}
+.sync-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: #8b9abf;
+  transition: background 0.3s;
+}
+.sync-dot.ok { background: #7ecba1; }
+.sync-dot.err { background: #e57373; }
+.sync-dot.loading { background: #f0c040; animation: pulse 0.8s infinite alternate; }
+@keyframes pulse { from { opacity: 0.4; } to { opacity: 1; } }
+
+.btn {
+  font-family: 'Mulish', sans-serif; font-size: 0.8rem; font-weight: 700;
+  padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer;
+  transition: all 0.16s; display: inline-flex; align-items: center; gap: 6px;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #2d5fc4; }
+.btn-success { background: var(--green); color: #fff; }
+.btn-success:hover { background: #196648; }
+.btn-ghost { background: rgba(255,255,255,0.09); color: #cdd4e8; border: 1px solid rgba(255,255,255,0.14); }
+.btn-ghost:hover { background: rgba(255,255,255,0.18); }
+.btn-sm { padding: 5px 12px; font-size: 0.74rem; }
+.btn-danger { background: var(--red-l); color: var(--red); }
+.btn-danger:hover { background: #f5c8c4; }
+.btn-outline { background: transparent; color: var(--text); border: 1.5px solid var(--border); }
+.btn-outline:hover { background: var(--bg); }
+
+.view-bar {
+  background: var(--white); border-bottom: 1.5px solid var(--border);
+  padding: 0 28px; display: flex; gap: 0;
+}
+.view-tab {
+  font-family: 'Mulish', sans-serif; font-size: 0.8rem; font-weight: 700;
+  padding: 14px 20px; border: none; background: transparent; cursor: pointer;
+  color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: -1.5px;
+  transition: all 0.15s; white-space: nowrap;
+}
+.view-tab:hover { color: var(--text); }
+.view-tab.active { color: var(--navy); border-bottom-color: var(--accent); }
+
+.main { padding: 24px 28px; max-width: 1340px; margin: 0 auto; }
+
+.top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+.top-bar-title { font-family: 'Playfair Display', serif; font-size: 1.4rem; font-weight: 700; color: var(--navy); }
+.top-bar-sub { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+.filters { display: flex; gap: 8px; flex-wrap: wrap; }
+.filter-select {
+  font-family: 'Mulish', sans-serif; font-size: 0.78rem; font-weight: 600;
+  padding: 6px 12px; border: 1.5px solid var(--border); border-radius: 8px;
+  background: var(--white); color: var(--text); cursor: pointer; outline: none;
+}
+
+.cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 16px; }
+.demand-card {
+  background: var(--white); border-radius: var(--radius); border: 1.5px solid var(--border);
+  box-shadow: var(--shadow); cursor: pointer; transition: all 0.18s;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.demand-card:hover { border-color: var(--accent); box-shadow: 0 4px 24px rgba(58,111,216,0.13); transform: translateY(-2px); }
+.card-stripe { height: 4px; width: 100%; }
+.card-body { padding: 16px 18px 12px; flex: 1; }
+.card-title { font-weight: 700; font-size: 0.92rem; color: var(--navy); line-height: 1.3; }
+.card-prof { font-size: 0.76rem; color: var(--muted); margin-top: 3px; font-weight: 600; }
+.card-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.card-footer { padding: 10px 18px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.card-prazo { font-size: 0.72rem; color: var(--muted); font-weight: 600; }
+.card-steps { display: flex; gap: 4px; }
+.step-dot {
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.6rem; font-weight: 800; border: 2px solid;
+}
+.progress-bar { height: 5px; border-radius: 3px; background: var(--border); margin-top: 6px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 3px; transition: width 0.4s; }
+
+.badge {
+  display: inline-flex; align-items: center;
+  padding: 2px 9px; border-radius: 20px; font-size: 0.69rem; font-weight: 700; letter-spacing: 0.3px; white-space: nowrap;
+}
+.bt-formacao     { background:#e8f0fe; color:#1a56db; }
+.bt-curriculo    { background:#e4f5ed; color:#1e7d5a; }
+.bt-avaliacao    { background:#fef4e0; color:#c47b10; }
+.bt-comportamento{ background:#fdecea; color:#c0392b; }
+.bt-gestao       { background:#f0eafb; color:#6c3eb5; }
+.bt-outro        { background:#f0ece6; color:#7a7e90; }
+.bp-alta   { background:#fdecea; color:#c0392b; }
+.bp-media  { background:#fef4e0; color:#c47b10; }
+.bp-baixa  { background:#e4f5ed; color:#1e7d5a; }
+.bs-aberta    { background:#e2f4f8; color:#0f7490; }
+.bs-andamento { background:#fef4e0; color:#c47b10; }
+.bs-encerrada { background:#e4f5ed; color:#1e7d5a; }
+.bs-cancelada { background:#f0ece6; color:#7a7e90; }
+
+/* MODAL */
+.modal-bg {
+  position: fixed; inset: 0; background: rgba(28,43,74,0.5);
+  z-index: 500; display: none; align-items: flex-start; justify-content: center;
+  padding: 24px 12px; overflow-y: auto;
+}
+.modal-bg.open { display: flex; }
+.modal {
+  background: var(--white); border-radius: 16px; width: 100%; max-width: 800px;
+  box-shadow: 0 8px 48px rgba(0,0,0,0.22); margin: auto;
+}
+.modal-header {
+  padding: 20px 24px 14px; border-bottom: 1.5px solid var(--border);
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+}
+.modal-title { font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weight: 700; color: var(--navy); }
+.modal-close { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--muted); padding: 2px 8px; border-radius: 6px; }
+.modal-close:hover { background: var(--bg); }
+.modal-body { padding: 0 24px 20px; overflow-y: auto; max-height: 80vh; }
+.modal-footer { padding: 12px 24px; border-top: 1.5px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+
+/* ETAPA TABS */
+.etapa-tabs {
+  display: flex; gap: 0; border-bottom: 1.5px solid var(--border);
+  margin: 0 -24px 20px; padding: 0 24px; overflow-x: auto; position: sticky; top: 0; background: var(--white); z-index: 10;
+}
+.etapa-tab {
+  font-family: 'Mulish', sans-serif; font-size: 0.76rem; font-weight: 700;
+  padding: 11px 14px; border: none; background: transparent; cursor: pointer;
+  color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: -1.5px;
+  transition: all 0.15s; white-space: nowrap; display: flex; align-items: center; gap: 5px;
+}
+.etapa-tab:hover { color: var(--text); }
+.etapa-tab.active { color: var(--navy); border-bottom-color: var(--accent); }
+.etapa-num {
+  width: 18px; height: 18px; border-radius: 50%; font-size: 0.6rem;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--border); color: var(--muted); font-weight: 800; transition: all 0.15s;
+}
+.etapa-tab.done .etapa-num  { background: var(--green); color: #fff; }
+.etapa-tab.active .etapa-num { background: var(--accent); color: #fff; }
+
+.etapa-panel { display: none; }
+.etapa-panel.active { display: block; }
+
+/* FORM */
+.form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+.fg { display: flex; flex-direction: column; gap: 5px; }
+.fg.full { grid-column: 1 / -1; }
+.fg label { font-size: 0.7rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; }
+.fg input, .fg select, .fg textarea {
+  font-family: 'Mulish', sans-serif; font-size: 0.86rem; font-weight: 500;
+  padding: 9px 12px; border: 1.5px solid var(--border); border-radius: 8px;
+  background: #fafaf8; color: var(--text); outline: none; transition: border-color 0.15s;
+}
+.fg input:focus, .fg select:focus, .fg textarea:focus { border-color: var(--accent); background: #fff; }
+.fg textarea { resize: vertical; min-height: 64px; }
+
+/* REGISTROS */
+.reg-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+.reg-card {
+  background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px;
+  padding: 13px 16px;
+}
+.reg-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
+.reg-card-title { font-size: 0.82rem; font-weight: 700; color: var(--navy); }
+.reg-card-date { font-size: 0.7rem; color: var(--muted); white-space: nowrap; }
+.reg-card-body { font-size: 0.79rem; color: var(--text); line-height: 1.55; }
+.reg-card-body b { font-weight: 700; color: var(--muted); }
+.reg-div { height: 1px; background: var(--border); margin: 7px 0; }
+
+.add-form { background: var(--bg); border: 1.5px dashed var(--border); border-radius: 10px; padding: 16px; margin-top: 4px; }
+.add-form-title { font-size: 0.8rem; font-weight: 700; color: var(--navy); margin-bottom: 12px; }
+
+/* METAS */
+.meta-header { display: grid; grid-template-columns: 1fr 110px 110px 32px; gap: 8px; margin-bottom: 4px; }
+.meta-header span { font-size: 0.67rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.meta-row { display: grid; grid-template-columns: 1fr 110px 110px 32px; gap: 8px; align-items: center; margin-bottom: 6px; }
+.meta-row input {
+  font-family: 'Mulish', sans-serif; font-size: 0.82rem; padding: 7px 10px;
+  border: 1.5px solid var(--border); border-radius: 6px; background: #fafaf8; color: var(--text);
+}
+.meta-row input:focus { outline: none; border-color: var(--accent); }
+.btn-rm { background: none; border: none; color: var(--red); cursor: pointer; font-size: 0.9rem; padding: 4px 6px; border-radius: 4px; }
+.btn-rm:hover { background: var(--red-l); }
+
+/* ENCERRAMENTO */
+.enc-box { border: 2px solid var(--border); border-radius: 12px; padding: 18px; background: #fafaf8; }
+.enc-title { font-family: 'Playfair Display', serif; font-size: 1rem; font-weight: 700; color: var(--navy); margin-bottom: 14px; }
+
+/* TABLE */
+.table-card { background: var(--white); border-radius: var(--radius); border: 1.5px solid var(--border); box-shadow: var(--shadow); overflow: hidden; }
+.tscroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+thead { background: var(--navy); }
+thead th { padding: 12px 14px; text-align: left; font-weight: 700; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.7px; color: #c8d0e8; white-space: nowrap; }
+tbody tr { border-bottom: 1px solid var(--border); transition: background 0.12s; cursor: pointer; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: #f8f7f4; }
+td { padding: 11px 14px; color: var(--text); font-weight: 500; vertical-align: middle; }
+
+/* EMPTY */
+.empty { text-align: center; padding: 44px 24px; color: var(--muted); }
+.empty-icon { font-size: 2.6rem; margin-bottom: 10px; }
+.empty-text { font-size: 0.9rem; font-weight: 700; color: var(--navy); }
+.empty-sub { font-size: 0.77rem; margin-top: 4px; }
+
+/* TOAST */
+.toast {
+  position: fixed; bottom: 22px; right: 22px;
+  background: var(--navy); color: #fff; padding: 10px 18px; border-radius: 10px;
+  font-size: 0.82rem; font-weight: 600; box-shadow: 0 4px 24px rgba(0,0,0,0.22);
+  z-index: 9999; transform: translateY(60px); opacity: 0; transition: all 0.26s cubic-bezier(.4,2,.6,1);
+  display: flex; align-items: center; gap: 8px; pointer-events: none;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.ok  { border-left: 4px solid #7ecba1; }
+.toast.err { border-left: 4px solid #e57373; }
+
+/* LOADING OVERLAY */
+.loading-overlay {
+  position: fixed; inset: 0; background: rgba(28,43,74,0.55);
+  z-index: 9000; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 14px;
+}
+.loading-overlay.show { display: flex; }
+.loading-spinner {
+  width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.2);
+  border-top-color: #7ecba1; border-radius: 50%; animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-msg { color: #fff; font-size: 0.9rem; font-weight: 600; }
+
+.view-section { display: none; }
+.view-section.active { display: block; }
+
+@media(max-width:640px){
+  .main { padding: 14px 12px; }
+  .header { padding: 0 14px; }
+  .cards-grid { grid-template-columns: 1fr; }
+  .meta-row, .meta-header { grid-template-columns: 1fr 80px 80px 28px; }
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div>
+    <div class="header-title">Demandas <span>Pedagógicas</span></div>
+    <div class="header-sub">Gestão · Monitoramento · Resultado</div>
+  </div>
+  <div class="header-actions">
+    <div class="sync-status">
+      <div class="sync-dot" id="sync-dot"></div>
+      <span id="sync-label">Conectando...</span>
+    </div>
+    <button class="btn btn-ghost" onclick="exportExcel()">⬇ Exportar Excel</button>
+    <button class="btn btn-ghost" onclick="carregarDados()">↻ Atualizar</button>
+    <button class="btn btn-primary" onclick="abrirNova()">+ Nova Demanda</button>
+  </div>
+</header>
+
+<div class="view-bar">
+  <button class="view-tab active" id="vtab-cards" onclick="switchView('cards')">🗂 Demandas</button>
+  <button class="view-tab" id="vtab-table" onclick="switchView('table')">📋 Tabela Geral</button>
+</div>
+
+<div class="main">
+
+  <!-- CARDS -->
+  <div class="view-section active" id="view-cards">
+    <div class="top-bar">
+      <div>
+        <div class="top-bar-title">Todas as Demandas</div>
+        <div class="top-bar-sub" id="count-lbl">0 demandas</div>
+      </div>
+      <div class="filters">
+        <select class="filter-select" id="f-tipo" onchange="renderCards()">
+          <option value="">Todos os tipos</option>
+          <option>Formação</option><option>Currículo</option>
+          <option>Avaliação</option><option>Comportamento</option>
+          <option>Gestão de sala</option><option>Outro</option>
+        </select>
+        <select class="filter-select" id="f-prio" onchange="renderCards()">
+          <option value="">Todas as prioridades</option>
+          <option>Alta</option><option>Média</option><option>Baixa</option>
+        </select>
+        <select class="filter-select" id="f-status" onchange="renderCards()">
+          <option value="">Todos os status</option>
+          <option>Aberta</option><option>Em andamento</option>
+          <option>Encerrada</option><option>Cancelada</option>
+        </select>
+      </div>
+    </div>
+    <div class="cards-grid" id="cards-grid"></div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="view-section" id="view-table">
+    <div class="top-bar">
+      <div class="top-bar-title">Visão Tabular</div>
+    </div>
+    <div class="table-card">
+      <div class="tscroll">
+        <table>
+          <thead><tr>
+            <th>#</th><th>Demanda</th><th>Professor</th><th>Turma</th>
+            <th>Tipo</th><th>Prioridade</th><th>Prazo</th><th>Status</th>
+            <th>Metas</th><th>Monit.</th><th>Acomp.</th><th>Resultado</th>
+          </tr></thead>
+          <tbody id="tbody-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════ MODAL ═══════ -->
+<div class="modal-bg" id="modal-bg">
+<div class="modal">
+
+  <div class="modal-header">
+    <div>
+      <div class="modal-title" id="modal-title">Nova Demanda</div>
+      <div id="modal-badges" style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;"></div>
+    </div>
+    <button class="modal-close" onclick="fecharModal()">✕</button>
+  </div>
+
+  <div class="modal-body">
+
+    <div class="etapa-tabs">
+      <button class="etapa-tab active" id="etab-demanda" onclick="switchEtapa('demanda')"><span class="etapa-num">1</span> Demanda</button>
+      <button class="etapa-tab" id="etab-plano" onclick="switchEtapa('plano')"><span class="etapa-num">2</span> Plano</button>
+      <button class="etapa-tab" id="etab-monit" onclick="switchEtapa('monit')"><span class="etapa-num">3</span> Monitoramento</button>
+      <button class="etapa-tab" id="etab-acomp" onclick="switchEtapa('acomp')"><span class="etapa-num">4</span> Acompanhamento</button>
+      <button class="etapa-tab" id="etab-result" onclick="switchEtapa('result')"><span class="etapa-num">5</span> Resultado</button>
+    </div>
+
+    <!-- ETAPA 1 -->
+    <div class="etapa-panel active" id="ep-demanda">
+      <div class="form-grid">
+        <div class="fg full"><label>Título da Demanda *</label><input type="text" id="d-titulo" placeholder="Ex: Melhorar desempenho em leitura — 3º Ano A"></div>
+        <div class="fg"><label>Professor Responsável *</label><input type="text" id="d-professor" placeholder="Nome do professor"></div>
+        <div class="fg"><label>Turma / Série</label><input type="text" id="d-turma" placeholder="Ex: 3º Ano A"></div>
+        <div class="fg"><label>Componente Curricular</label><input type="text" id="d-componente" placeholder="Ex: Língua Portuguesa"></div>
+        <div class="fg"><label>Tipo de Demanda</label>
+          <select id="d-tipo"><option>Formação</option><option>Currículo</option><option>Avaliação</option><option>Comportamento</option><option>Gestão de sala</option><option>Outro</option></select>
+        </div>
+        <div class="fg"><label>Prioridade</label>
+          <select id="d-prioridade"><option>Alta</option><option>Média</option><option>Baixa</option></select>
+        </div>
+        <div class="fg"><label>Prazo Final</label><input type="date" id="d-prazo"></div>
+        <div class="fg full"><label>Descrição / Contexto</label><textarea id="d-descricao" placeholder="Descreva o problema identificado e o que motivou esta demanda..."></textarea></div>
+        <div class="fg full"><label>Observações Iniciais</label><textarea id="d-obs" placeholder="Observações adicionais..." style="min-height:48px;"></textarea></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:16px;">
+        <button class="btn btn-primary" onclick="salvarDemanda()">Salvar e continuar →</button>
+      </div>
+    </div>
+
+    <!-- ETAPA 2 -->
+    <div class="etapa-panel" id="ep-plano">
+      <div class="form-grid" style="margin-bottom:16px;">
+        <div class="fg"><label>Data de Início</label><input type="date" id="p-inicio"></div>
+        <div class="fg"><label>Prazo do Plano</label><input type="date" id="p-prazo"></div>
+        <div class="fg"><label>Responsável pelo Plano</label><input type="text" id="p-responsavel" placeholder="Nome"></div>
+        <div class="fg"><label>Eixo / Habilidade BNCC</label><input type="text" id="p-eixo" placeholder="Ex: EF35LP01..."></div>
+        <div class="fg full"><label>Estratégias e Ações Previstas</label><textarea id="p-estrategia" placeholder="Descreva as estratégias e ações que serão adotadas..."></textarea></div>
+        <div class="fg full"><label>Recursos Necessários</label><input type="text" id="p-recursos" placeholder="Ex: Material impresso, data show, formação..."></div>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <div style="font-size:0.78rem;font-weight:700;color:var(--navy);">Metas</div>
+        <button class="btn btn-sm btn-outline" onclick="addMeta()">+ Adicionar meta</button>
+      </div>
+      <div class="meta-header">
+        <span>Descrição da meta</span><span style="text-align:center;">Meta (%)</span><span style="text-align:center;">Resultado (%)</span><span></span>
+      </div>
+      <div id="metas-container"></div>
+
+      <div style="display:flex;justify-content:space-between;margin-top:16px;">
+        <button class="btn btn-outline btn-sm" onclick="switchEtapa('demanda')">← Voltar</button>
+        <button class="btn btn-primary" onclick="salvarPlano()">Salvar Plano →</button>
+      </div>
+    </div>
+
+    <!-- ETAPA 3 -->
+    <div class="etapa-panel" id="ep-monit">
+      <div class="reg-list" id="list-monit"></div>
+      <div class="add-form">
+        <div class="add-form-title">📋 Registrar Monitoramento</div>
+        <div class="form-grid">
+          <div class="fg"><label>Data</label><input type="date" id="m-data"></div>
+          <div class="fg"><label>Responsável</label><input type="text" id="m-responsavel" placeholder="Nome"></div>
+          <div class="fg"><label>Forma</label>
+            <select id="m-forma"><option>Visita à sala de aula</option><option>Análise de diário</option><option>Reunião pedagógica</option><option>Análise de atividades</option><option>Conselho de classe</option><option>Observação informal</option><option>Outro</option></select>
+          </div>
+          <div class="fg"><label>Situação Observada</label>
+            <select id="m-situacao"><option>Satisfatório</option><option>Parcialmente satisfatório</option><option>Em progresso</option><option>Insatisfatório</option></select>
+          </div>
+          <div class="fg full"><label>Observações</label><textarea id="m-obs" placeholder="O que foi observado? Pontos positivos, dificuldades..."></textarea></div>
+          <div class="fg full"><label>Encaminhamentos</label><textarea id="m-encaminhamento" placeholder="Quais encaminhamentos foram realizados?" style="min-height:48px;"></textarea></div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:12px;">
+          <button class="btn btn-primary btn-sm" onclick="addMonit()">+ Salvar Monitoramento</button>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:16px;">
+        <button class="btn btn-outline btn-sm" onclick="switchEtapa('plano')">← Voltar</button>
+        <button class="btn btn-primary" onclick="switchEtapa('acomp')">Ir para Acompanhamento →</button>
+      </div>
+    </div>
+
+    <!-- ETAPA 4 -->
+    <div class="etapa-panel" id="ep-acomp">
+      <div class="reg-list" id="list-acomp"></div>
+      <div class="add-form">
+        <div class="add-form-title">🔍 Registrar Acompanhamento</div>
+        <div class="form-grid">
+          <div class="fg"><label>Data</label><input type="date" id="a-data"></div>
+          <div class="fg"><label>Gestor / Coordenador</label><input type="text" id="a-gestor" placeholder="Nome"></div>
+          <div class="fg"><label>Tipo</label>
+            <select id="a-tipo"><option>Formação continuada</option><option>Devolutiva pedagógica</option><option>Orientação individual</option><option>Reunião coletiva</option><option>Observação de aula</option><option>Feedback de desempenho</option><option>Outro</option></select>
+          </div>
+          <div class="fg"><label>Status</label>
+            <select id="a-status"><option>Realizado</option><option>Agendado</option><option>Reagendado</option><option>Não realizado</option></select>
+          </div>
+          <div class="fg full"><label>Descrição</label><textarea id="a-descricao" placeholder="O que foi tratado? Como o professor respondeu?"></textarea></div>
+          <div class="fg full"><label>Próximos Passos / Combinados</label><textarea id="a-proximos" placeholder="O que ficou combinado?" style="min-height:48px;"></textarea></div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:12px;">
+          <button class="btn btn-primary btn-sm" onclick="addAcomp()">+ Salvar Acompanhamento</button>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:16px;">
+        <button class="btn btn-outline btn-sm" onclick="switchEtapa('monit')">← Voltar</button>
+        <button class="btn btn-primary" onclick="switchEtapa('result')">Ir para Resultado →</button>
+      </div>
+    </div>
+
+    <!-- ETAPA 5 -->
+    <div class="etapa-panel" id="ep-result">
+      <div class="enc-box">
+        <div class="enc-title">🏁 Encerramento da Demanda</div>
+        <div class="form-grid">
+          <div class="fg"><label>Data de Encerramento</label><input type="date" id="r-data"></div>
+          <div class="fg"><label>Status Final</label>
+            <select id="r-status"><option value="Encerrada">Encerrada — Demanda atendida</option><option value="Cancelada">Cancelada</option></select>
+          </div>
+          <div class="fg"><label>Classificação do Resultado</label>
+            <select id="r-class"><option>Excelente — acima da meta</option><option>Satisfatório — meta atingida</option><option>Parcial — abaixo da meta</option><option>Insuficiente — muito abaixo da meta</option></select>
+          </div>
+          <div class="fg"><label>Nº de Alunos Impactados</label><input type="number" id="r-alunos" placeholder="0" min="0"></div>
+          <div class="fg full"><label>Análise dos Resultados *</label><textarea id="r-analise" placeholder="Descreva os resultados alcançados em relação às metas..."></textarea></div>
+          <div class="fg full"><label>Aprendizados e Recomendações</label><textarea id="r-recom" placeholder="O que ficou de aprendizado para demandas futuras?" style="min-height:48px;"></textarea></div>
+        </div>
+      </div>
+      <div id="result-registrado" style="display:none;margin-top:14px;">
+        <div style="font-size:0.74rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">Resultado registrado</div>
+        <div class="reg-card" id="result-card"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:18px;">
+        <button class="btn btn-outline btn-sm" onclick="switchEtapa('acomp')">← Voltar</button>
+        <button class="btn btn-success" onclick="encerrar()">✓ Encerrar Demanda</button>
+      </div>
+    </div>
+
+  </div><!-- /modal-body -->
+
+  <div class="modal-footer">
+    <button class="btn btn-danger btn-sm" id="btn-excluir" onclick="excluir()" style="margin-right:auto;display:none;">🗑 Excluir</button>
+    <button class="btn btn-outline btn-sm" onclick="fecharModal()">Fechar</button>
+  </div>
+
+</div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-msg" id="loading-msg">Carregando dados...</div>
+</div>
+
+<div class="toast" id="toast"><span id="t-icon">✓</span><span id="t-msg"></span></div>
+
+<script>
+// ══════════════════════════════════════════
+// CONFIGURAÇÃO — URL do Google Apps Script
+// ══════════════════════════════════════════
+const SCRIPT_URL = 'https://script.google.com/a/macros/edu.mt.gov.br/s/AKfycby6IzQ4ZdZTN8auMFglnq74iu944zD7rKsGnTSCfXhP5pbOXgQn9bizJHDrFBWs4tSH/exec';
+
+// ── ESTADO LOCAL (cache em memória) ──
+let _cache = [];
+let cid = null;
+let metas = [];
+
+// ── INDICADOR DE SYNC ──
+function setSyncStatus(state, label) {
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  dot.className = 'sync-dot ' + state;
+  lbl.textContent = label;
+}
+
+// ── LOADING ──
+function showLoading(msg) {
+  document.getElementById('loading-msg').textContent = msg || 'Aguarde...';
+  document.getElementById('loading-overlay').classList.add('show');
+}
+function hideLoading() {
+  document.getElementById('loading-overlay').classList.remove('show');
+}
+
+// ── CARREGAR DADOS DO SHEETS ──
+async function carregarDados() {
+  setSyncStatus('loading', 'Carregando...');
+  try {
+    const res = await fetch(SCRIPT_URL + '?t=' + Date.now());
+    const text = await res.text();
+    _cache = text && text !== '[]' ? JSON.parse(text) : [];
+    setSyncStatus('ok', 'Sincronizado ✓');
+    renderCards();
+    return _cache;
+  } catch(e) {
+    setSyncStatus('err', 'Erro de conexão');
+    toast('Erro ao carregar dados. Verifique a conexão.', 'err');
+    return _cache;
+  }
+}
+
+// ── SALVAR TODOS NO SHEETS ──
+async function salvarNauvem(dados) {
+  setSyncStatus('loading', 'Salvando...');
+  try {
+    await fetch(SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dados)
+    });
+    _cache = dados;
+    setSyncStatus('ok', 'Sincronizado ✓');
+    return true;
+  } catch(e) {
+    setSyncStatus('err', 'Erro ao salvar');
+    toast('Erro ao salvar na nuvem!', 'err');
+    return false;
+  }
+}
+
+function load() { return _cache; }
+async function saveAll(a) { await salvarNauvem(a); }
+
+// ── VIEW ──
+function switchView(vw) {
+  document.querySelectorAll('.view-section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.view-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('view-'+vw).classList.add('active');
+  document.getElementById('vtab-'+vw).classList.add('active');
+  vw==='table' ? renderTable() : renderCards();
+}
+
+// ── STRIPE COLORS ──
+const STRIPE = {'Aberta':'#3a6fd8','Em andamento':'#c47b10','Encerrada':'#1e7d5a','Cancelada':'#aaa'};
+const TIPO_C = {'Formação':'bt-formacao','Currículo':'bt-curriculo','Avaliação':'bt-avaliacao','Comportamento':'bt-comportamento','Gestão de sala':'bt-gestao','Outro':'bt-outro'};
+const PRIO_C = {'Alta':'bp-alta','Média':'bp-media','Baixa':'bp-baixa'};
+const STAT_C = {'Aberta':'bs-aberta','Em andamento':'bs-andamento','Encerrada':'bs-encerrada','Cancelada':'bs-cancelada'};
+
+function sdot(label, done, color) {
+  const bg = done ? color : 'var(--border)';
+  const tc = done ? '#fff' : 'var(--muted)';
+  return `<div class="step-dot" style="background:${bg};border-color:${bg};color:${tc};" title="${label}">${label[0]}</div>`;
+}
+
+// ── RENDER CARDS ──
+function renderCards() {
+  const all = load();
+  const ft = document.getElementById('f-tipo').value;
+  const fp = document.getElementById('f-prio').value;
+  const fs = document.getElementById('f-status').value;
+  const fil = all.filter(d => (!ft||d.tipo===ft)&&(!fp||d.prioridade===fp)&&(!fs||d.statusGeral===fs));
+  document.getElementById('count-lbl').textContent = `${all.length} demanda${all.length!==1?'s':''} cadastrada${all.length!==1?'s':''}`;
+  const grid = document.getElementById('cards-grid');
+  if (fil.length===0) {
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">📭</div><div class="empty-text">Nenhuma demanda encontrada</div><div class="empty-sub">Clique em "+ Nova Demanda" para começar</div></div>`;
+    return;
+  }
+  grid.innerHTML = fil.map(d => {
+    const temP = d.plano&&(d.plano.estrategia||(d.plano.metas&&d.plano.metas.length));
+    const temM = (d.monitoramentos||[]).length>0;
+    const temA = (d.acompanhamentos||[]).length>0;
+    const temR = !!d.resultado;
+    let prog = '';
+    if (d.plano&&d.plano.metas&&d.plano.metas.length) {
+      const ms = d.plano.metas;
+      const avgM = ms.reduce((a,m)=>a+(parseFloat(m.metaVal)||0),0)/ms.length;
+      const avgR = ms.reduce((a,m)=>a+(parseFloat(m.resultVal)||0),0)/ms.length;
+      const pct = avgM>0?Math.min(100,Math.round((avgR/avgM)*100)):0;
+      prog = `<div style="font-size:0.68rem;color:var(--muted);margin-top:8px;">Meta: ${avgM.toFixed(0)}% · Resultado: ${avgR.toFixed(0)}%
+        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${pct>=100?'var(--green)':pct>=60?'var(--amber)':'var(--red)'};"></div></div></div>`;
+    }
+    return `<div class="demand-card" onclick="abrirDemanda('${d.id}')">
+      <div class="card-stripe" style="background:${STRIPE[d.statusGeral]||'#ccc'}"></div>
+      <div class="card-body">
+        <div class="card-title">${esc(d.titulo)}</div>
+        <div class="card-prof">👤 ${esc(d.professor)}${d.turma?' · '+esc(d.turma):''}</div>
+        <div class="card-meta">
+          <span class="badge ${TIPO_C[d.tipo]||'bt-outro'}">${d.tipo||'—'}</span>
+          <span class="badge ${PRIO_C[d.prioridade]||'bp-baixa'}">${d.prioridade||'—'}</span>
+          <span class="badge ${STAT_C[d.statusGeral]||'bs-aberta'}">${d.statusGeral||'Aberta'}</span>
+        </div>
+        ${prog}
+      </div>
+      <div class="card-footer">
+        <div class="card-prazo">${d.prazo?'⏱ '+fmt(d.prazo):'Sem prazo'}</div>
+        <div class="card-steps">
+          ${sdot('Plano',temP,'#3a6fd8')}${sdot('Monitoramento',temM,'#c47b10')}${sdot('Acompanhamento',temA,'#6c3eb5')}${sdot('Resultado',temR,'#1e7d5a')}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── RENDER TABLE ──
+function renderTable() {
+  const all = load();
+  const tbody = document.getElementById('tbody-table');
+  if (!all.length) {
+    tbody.innerHTML = `<tr><td colspan="12"><div class="empty"><div class="empty-text">Nenhuma demanda cadastrada</div></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = all.map((d,i) => {
+    const ms = (d.plano?.metas||[]).map(m=>`${m.descricao}: ${m.metaVal||0}%→${m.resultVal||0}%`).join(' | ')||'—';
+    return `<tr onclick="abrirDemanda('${d.id}')">
+      <td>${i+1}</td><td><b>${esc(d.titulo)}</b></td><td>${esc(d.professor)}</td><td>${esc(d.turma||'—')}</td>
+      <td><span class="badge ${TIPO_C[d.tipo]||'bt-outro'}">${d.tipo||'—'}</span></td>
+      <td><span class="badge ${PRIO_C[d.prioridade]||'bp-baixa'}">${d.prioridade}</span></td>
+      <td>${d.prazo?fmt(d.prazo):'—'}</td>
+      <td><span class="badge ${STAT_C[d.statusGeral]||'bs-aberta'}">${d.statusGeral}</span></td>
+      <td style="max-width:180px;font-size:0.74rem;">${esc(ms)}</td>
+      <td style="text-align:center;">${(d.monitoramentos||[]).length}</td>
+      <td style="text-align:center;">${(d.acompanhamentos||[]).length}</td>
+      <td>${d.resultado?`<span class="badge" style="background:var(--green-l);color:var(--green);">${esc(d.resultado.classificacao)}</span>`:'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── MODAL ──
+function abrirNova() {
+  cid = 'dem_'+Date.now(); metas = [];
+  limpar();
+  document.getElementById('modal-title').textContent = 'Nova Demanda';
+  document.getElementById('modal-badges').innerHTML = '';
+  document.getElementById('btn-excluir').style.display = 'none';
+  document.querySelectorAll('.etapa-tab').forEach(t=>t.classList.remove('active','done'));
+  document.getElementById('etab-demanda').classList.add('active');
+  renderMetaRows();
+  document.getElementById('list-monit').innerHTML = emptyReg('Nenhum monitoramento registrado');
+  document.getElementById('list-acomp').innerHTML = emptyReg('Nenhum acompanhamento registrado');
+  document.getElementById('result-registrado').style.display='none';
+  switchEtapa('demanda');
+  document.getElementById('modal-bg').classList.add('open');
+}
+
+function abrirDemanda(id) {
+  const d = load().find(x=>x.id===id);
+  if (!d) return;
+  cid = id; metas = d.plano?.metas ? JSON.parse(JSON.stringify(d.plano.metas)) : [];
+
+  v('d-titulo',d.titulo); v('d-professor',d.professor); v('d-turma',d.turma);
+  v('d-componente',d.componente); v('d-prazo',d.prazo); v('d-descricao',d.descricao); v('d-obs',d.obs);
+  sel('d-tipo',d.tipo); sel('d-prioridade',d.prioridade);
+
+  if (d.plano) {
+    v('p-inicio',d.plano.inicio); v('p-prazo',d.plano.prazo); v('p-responsavel',d.plano.responsavel);
+    v('p-eixo',d.plano.eixo); v('p-estrategia',d.plano.estrategia); v('p-recursos',d.plano.recursos);
+  }
+  renderMetaRows();
+  renderListMonit(d.monitoramentos||[]);
+  renderListAcomp(d.acompanhamentos||[]);
+  if (d.resultado) {
+    v('r-data',d.resultado.data); v('r-alunos',d.resultado.alunos);
+    v('r-analise',d.resultado.analise); v('r-recom',d.resultado.recomendacoes);
+    sel('r-status',d.resultado.statusFinal); sel('r-class',d.resultado.classificacao);
+    renderResultCard(d.resultado);
+  } else {
+    document.getElementById('result-registrado').style.display='none';
+  }
+  document.getElementById('modal-title').textContent = d.titulo||'Demanda';
+  document.getElementById('modal-badges').innerHTML =
+    `<span class="badge ${STAT_C[d.statusGeral]||'bs-aberta'}">${d.statusGeral}</span>
+     <span class="badge ${TIPO_C[d.tipo]||'bt-outro'}">${d.tipo}</span>
+     <span class="badge ${PRIO_C[d.prioridade]||'bp-baixa'}">${d.prioridade}</span>`;
+  document.getElementById('btn-excluir').style.display='inline-flex';
+  document.querySelectorAll('.etapa-tab').forEach(t=>t.classList.remove('active','done'));
+  if (d.plano&&(d.plano.estrategia||(d.plano.metas&&d.plano.metas.length))) document.getElementById('etab-plano').classList.add('done');
+  if ((d.monitoramentos||[]).length) document.getElementById('etab-monit').classList.add('done');
+  if ((d.acompanhamentos||[]).length) document.getElementById('etab-acomp').classList.add('done');
+  if (d.resultado) document.getElementById('etab-result').classList.add('done');
+  switchEtapa('demanda');
+  document.getElementById('modal-bg').classList.add('open');
+}
+
+function fecharModal() { document.getElementById('modal-bg').classList.remove('open'); cid=null; }
+
+function switchEtapa(n) {
+  document.querySelectorAll('.etapa-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.etapa-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('ep-'+n).classList.add('active');
+  document.getElementById('etab-'+n).classList.add('active');
+}
+
+// ── SALVAR DEMANDA ──
+async function salvarDemanda() {
+  const titulo = g('d-titulo').trim();
+  const prof   = g('d-professor').trim();
+  if (!titulo||!prof) { toast('Preencha Título e Professor.','err'); return; }
+  showLoading('Salvando demanda...');
+  const all = load();
+  let idx = all.findIndex(x=>x.id===cid);
+  const obj = idx>=0 ? all[idx] : { id:cid, statusGeral:'Aberta', monitoramentos:[], acompanhamentos:[], resultado:null };
+  obj.titulo=titulo; obj.professor=prof; obj.turma=g('d-turma').trim();
+  obj.componente=g('d-componente').trim(); obj.tipo=g('d-tipo'); obj.prioridade=g('d-prioridade');
+  obj.prazo=g('d-prazo'); obj.descricao=g('d-descricao').trim(); obj.obs=g('d-obs').trim();
+  obj.criadoEm=obj.criadoEm||new Date().toLocaleString('pt-BR');
+  if (idx>=0) all[idx]=obj; else all.push(obj);
+  await saveAll(all);
+  hideLoading();
+  toast('Demanda salva!','ok'); renderCards(); switchEtapa('plano');
+}
+
+// ── METAS ──
+function addMeta() { metas.push({descricao:'',metaVal:'',resultVal:''}); renderMetaRows(); }
+function removeMeta(i) { metas.splice(i,1); renderMetaRows(); }
+function renderMetaRows() {
+  const c = document.getElementById('metas-container');
+  if (!metas.length) { c.innerHTML = `<div style="font-size:0.78rem;color:var(--muted);padding:6px 0;">Nenhuma meta. Clique em "+ Adicionar meta".</div>`; return; }
+  c.innerHTML = metas.map((m,i) => `<div class="meta-row">
+    <input type="text" value="${esc(m.descricao)}" placeholder="Ex: 70% em nível adequado" oninput="metas[${i}].descricao=this.value">
+    <input type="number" value="${m.metaVal}" placeholder="0" min="0" max="100" oninput="metas[${i}].metaVal=this.value" style="text-align:center;">
+    <input type="number" value="${m.resultVal}" placeholder="0" min="0" max="100" oninput="metas[${i}].resultVal=this.value" style="text-align:center;">
+    <button class="btn-rm" onclick="removeMeta(${i})">✕</button>
+  </div>`).join('');
+}
+
+// ── SALVAR PLANO ──
+async function salvarPlano() {
+  const all = load(); const idx = all.findIndex(x=>x.id===cid);
+  if (idx<0) { toast('Salve a demanda primeiro.','err'); return; }
+  showLoading('Salvando plano...');
+  all[idx].plano = {
+    inicio:g('p-inicio'), prazo:g('p-prazo'), responsavel:g('p-responsavel').trim(),
+    eixo:g('p-eixo').trim(), estrategia:g('p-estrategia').trim(), recursos:g('p-recursos').trim(),
+    metas:JSON.parse(JSON.stringify(metas))
+  };
+  if (all[idx].statusGeral==='Aberta') all[idx].statusGeral='Em andamento';
+  await saveAll(all);
+  hideLoading();
+  toast('Plano salvo!','ok'); renderCards();
+  document.getElementById('etab-plano').classList.add('done');
+  switchEtapa('monit');
+}
+
+// ── MONITORAMENTO ──
+async function addMonit() {
+  const obs = g('m-obs').trim(); if (!obs) { toast('Preencha as observações.','err'); return; }
+  const all = load(); const idx = all.findIndex(x=>x.id===cid);
+  if (idx<0) { toast('Salve a demanda primeiro.','err'); return; }
+  showLoading('Salvando monitoramento...');
+  if (!all[idx].monitoramentos) all[idx].monitoramentos=[];
+  all[idx].monitoramentos.push({
+    data:g('m-data'), responsavel:g('m-responsavel').trim(), forma:g('m-forma'),
+    situacao:g('m-situacao'), obs, encaminhamento:g('m-encaminhamento').trim(),
+    _at:new Date().toLocaleString('pt-BR')
+  });
+  await saveAll(all);
+  hideLoading();
+  ['m-data','m-responsavel','m-obs','m-encaminhamento'].forEach(id=>document.getElementById(id).value='');
+  renderListMonit(all[idx].monitoramentos);
+  toast('Monitoramento salvo!','ok'); renderCards();
+  document.getElementById('etab-monit').classList.add('done');
+}
+
+function renderListMonit(list) {
+  const el = document.getElementById('list-monit');
+  if (!list.length) { el.innerHTML=emptyReg('Nenhum monitoramento registrado'); return; }
+  el.innerHTML = list.slice().reverse().map(r=>`<div class="reg-card">
+    <div class="reg-card-top"><div class="reg-card-title">${esc(r.forma)} — ${esc(r.situacao)}</div><div class="reg-card-date">${r.data?fmt(r.data):r._at}</div></div>
+    <div class="reg-card-body">${r.responsavel?`<b>Responsável:</b> ${esc(r.responsavel)}<br>`:''}
+    <b>Observações:</b> ${esc(r.obs)}${r.encaminhamento?`<div class="reg-div"></div><b>Encaminhamentos:</b> ${esc(r.encaminhamento)}`:''}</div>
+  </div>`).join('');
+}
+
+// ── ACOMPANHAMENTO ──
+async function addAcomp() {
+  const desc = g('a-descricao').trim(); if (!desc) { toast('Preencha a descrição.','err'); return; }
+  const all = load(); const idx = all.findIndex(x=>x.id===cid);
+  if (idx<0) { toast('Salve a demanda primeiro.','err'); return; }
+  showLoading('Salvando acompanhamento...');
+  if (!all[idx].acompanhamentos) all[idx].acompanhamentos=[];
+  all[idx].acompanhamentos.push({
+    data:g('a-data'), gestor:g('a-gestor').trim(), tipo:g('a-tipo'),
+    status:g('a-status'), descricao:desc, proximos:g('a-proximos').trim(),
+    _at:new Date().toLocaleString('pt-BR')
+  });
+  await saveAll(all);
+  hideLoading();
+  ['a-data','a-gestor','a-descricao','a-proximos'].forEach(id=>document.getElementById(id).value='');
+  renderListAcomp(all[idx].acompanhamentos);
+  toast('Acompanhamento salvo!','ok'); renderCards();
+  document.getElementById('etab-acomp').classList.add('done');
+}
+
+function renderListAcomp(list) {
+  const el = document.getElementById('list-acomp');
+  if (!list.length) { el.innerHTML=emptyReg('Nenhum acompanhamento registrado'); return; }
+  el.innerHTML = list.slice().reverse().map(r=>`<div class="reg-card">
+    <div class="reg-card-top"><div class="reg-card-title">${esc(r.tipo)} — <span style="color:var(--muted)">${esc(r.status)}</span></div><div class="reg-card-date">${r.data?fmt(r.data):r._at}</div></div>
+    <div class="reg-card-body">${r.gestor?`<b>Gestor:</b> ${esc(r.gestor)}<br>`:''}
+    <b>Descrição:</b> ${esc(r.descricao)}${r.proximos?`<div class="reg-div"></div><b>Próximos passos:</b> ${esc(r.proximos)}`:''}</div>
+  </div>`).join('');
+}
+
+// ── ENCERRAR ──
+async function encerrar() {
+  const analise = g('r-analise').trim(); if (!analise) { toast('Preencha a análise.','err'); return; }
+  const all = load(); const idx = all.findIndex(x=>x.id===cid);
+  if (idx<0) { toast('Salve a demanda primeiro.','err'); return; }
+  showLoading('Encerrando demanda...');
+  const statusFinal = document.getElementById('r-status').value;
+  const resultado = {
+    data:g('r-data'), statusFinal, classificacao:g('r-class'),
+    alunos:g('r-alunos'), analise, recomendacoes:g('r-recom').trim(),
+    _at:new Date().toLocaleString('pt-BR')
+  };
+  all[idx].resultado=resultado; all[idx].statusGeral=statusFinal;
+  await saveAll(all);
+  hideLoading();
+  renderResultCard(resultado); toast('Demanda encerrada!','ok'); renderCards();
+  document.getElementById('etab-result').classList.add('done');
+  document.getElementById('modal-badges').innerHTML = `<span class="badge ${STAT_C[statusFinal]||'bs-encerrada'}">${statusFinal}</span>`;
+}
+
+function renderResultCard(r) {
+  document.getElementById('result-registrado').style.display='block';
+  document.getElementById('result-card').innerHTML = `
+    <div class="reg-card-top"><div class="reg-card-title">Resultado: ${esc(r.classificacao)}</div><div class="reg-card-date">${r.data?fmt(r.data):r._at}</div></div>
+    <div class="reg-card-body">${r.alunos?`<b>Alunos impactados:</b> ${esc(r.alunos)}<br>`:''}
+    <b>Análise:</b> ${esc(r.analise)}${r.recomendacoes?`<div class="reg-div"></div><b>Recomendações:</b> ${esc(r.recomendacoes)}`:''}</div>`;
+}
+
+// ── EXCLUIR ──
+async function excluir() {
+  if (!confirm('Excluir esta demanda e todos os seus dados?')) return;
+  showLoading('Excluindo...');
+  await saveAll(load().filter(x=>x.id!==cid));
+  hideLoading();
+  fecharModal(); renderCards(); toast('Demanda excluída.','ok');
+}
+
+// ── EXPORT EXCEL ──
+function exportExcel() {
+  const all = load();
+  if (!all.length) { toast('Nenhuma demanda para exportar.','err'); return; }
+  const wb = XLSX.utils.book_new();
+
+  const ws1 = XLSX.utils.aoa_to_sheet([
+    ['Título','Professor','Turma','Componente','Tipo','Prioridade','Prazo','Status','Descrição','Observações','Criado em'],
+    ...all.map(d=>[d.titulo,d.professor,d.turma,d.componente,d.tipo,d.prioridade,d.prazo?fmt(d.prazo):'',d.statusGeral,d.descricao,d.obs,d.criadoEm])
+  ]);
+  ws1['!cols']=[{wch:40},{wch:22},{wch:14},{wch:20},{wch:16},{wch:12},{wch:14},{wch:16},{wch:40},{wch:30},{wch:20}];
+  XLSX.utils.book_append_sheet(wb,ws1,'Demandas');
+
+  const rows2=[['Demanda','Professor','Início','Prazo Plano','Responsável','Eixo BNCC','Estratégias','Recursos','Meta — Descrição','Meta (%)','Resultado (%)']];
+  all.forEach(d=>{ if (!d.plano) return; const p=d.plano; const ms=p.metas||[];
+    if (!ms.length) rows2.push([d.titulo,d.professor,p.inicio?fmt(p.inicio):'',p.prazo?fmt(p.prazo):'',p.responsavel,p.eixo,p.estrategia,p.recursos,'','','']);
+    else ms.forEach(m=>rows2.push([d.titulo,d.professor,p.inicio?fmt(p.inicio):'',p.prazo?fmt(p.prazo):'',p.responsavel,p.eixo,p.estrategia,p.recursos,m.descricao,m.metaVal,m.resultVal]));
+  });
+  const ws2=XLSX.utils.aoa_to_sheet(rows2);
+  ws2['!cols']=[{wch:40},{wch:22},{wch:13},{wch:13},{wch:22},{wch:18},{wch:40},{wch:30},{wch:36},{wch:11},{wch:13}];
+  XLSX.utils.book_append_sheet(wb,ws2,'Planos e Metas');
+
+  const rows3=[['Demanda','Professor','Data','Responsável','Forma','Situação','Observações','Encaminhamentos']];
+  all.forEach(d=>(d.monitoramentos||[]).forEach(m=>rows3.push([d.titulo,d.professor,m.data?fmt(m.data):'',m.responsavel,m.forma,m.situacao,m.obs,m.encaminhamento])));
+  const ws3=XLSX.utils.aoa_to_sheet(rows3);
+  ws3['!cols']=[{wch:40},{wch:22},{wch:13},{wch:22},{wch:24},{wch:24},{wch:40},{wch:40}];
+  XLSX.utils.book_append_sheet(wb,ws3,'Monitoramentos');
+
+  const rows4=[['Demanda','Professor','Data','Gestor','Tipo','Status','Descrição','Próximos Passos']];
+  all.forEach(d=>(d.acompanhamentos||[]).forEach(a=>rows4.push([d.titulo,d.professor,a.data?fmt(a.data):'',a.gestor,a.tipo,a.status,a.descricao,a.proximos])));
+  const ws4=XLSX.utils.aoa_to_sheet(rows4);
+  ws4['!cols']=[{wch:40},{wch:22},{wch:13},{wch:22},{wch:28},{wch:16},{wch:40},{wch:40}];
+  XLSX.utils.book_append_sheet(wb,ws4,'Acompanhamentos');
+
+  const rows5=[['Demanda','Professor','Data Encerramento','Status Final','Classificação','Alunos Impactados','Análise','Recomendações']];
+  all.filter(d=>d.resultado).forEach(d=>{ const r=d.resultado;
+    rows5.push([d.titulo,d.professor,r.data?fmt(r.data):'',r.statusFinal,r.classificacao,r.alunos,r.analise,r.recomendacoes]);
+  });
+  const ws5=XLSX.utils.aoa_to_sheet(rows5);
+  ws5['!cols']=[{wch:40},{wch:22},{wch:18},{wch:14},{wch:30},{wch:18},{wch:50},{wch:40}];
+  XLSX.utils.book_append_sheet(wb,ws5,'Resultados');
+
+  XLSX.writeFile(wb,'Demandas_Pedagogicas_'+new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')+'.xlsx');
+  toast('Excel exportado com sucesso!','ok');
+}
+
+// ── UTILS ──
+function g(id) { const el=document.getElementById(id); return el?el.value:''; }
+function v(id,val) { const el=document.getElementById(id); if(el) el.value=val||''; }
+function sel(id,val) { const el=document.getElementById(id); if(el&&val) el.value=val; }
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmt(s){ if(!s) return ''; try{ const [y,m,d]=s.split('-'); return `${d}/${m}/${y}`; }catch(e){ return s; } }
+function emptyReg(txt) { return `<div style="text-align:center;padding:18px;color:var(--muted);font-size:0.82rem;font-weight:600;">${txt}</div>`; }
+
+function limpar() {
+  ['d-titulo','d-professor','d-turma','d-componente','d-prazo','d-descricao','d-obs',
+   'p-inicio','p-prazo','p-responsavel','p-eixo','p-estrategia','p-recursos',
+   'm-data','m-responsavel','m-obs','m-encaminhamento',
+   'a-data','a-gestor','a-descricao','a-proximos',
+   'r-data','r-alunos','r-analise','r-recom'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+}
+
+let _tt=null;
+function toast(msg,type='ok') {
+  const el=document.getElementById('toast');
+  document.getElementById('t-msg').textContent=msg;
+  document.getElementById('t-icon').textContent=type==='ok'?'✓':'⚠';
+  el.className='toast '+type+' show';
+  if(_tt) clearTimeout(_tt);
+  _tt=setTimeout(()=>el.classList.remove('show'),3000);
+}
+
+document.getElementById('modal-bg').addEventListener('click',function(e){ if(e.target===this) fecharModal(); });
+
+// ── INIT: carrega dados ao abrir ──
+setSyncStatus('loading','Conectando...');
+carregarDados();
+</script>
+</body>
+</html>
